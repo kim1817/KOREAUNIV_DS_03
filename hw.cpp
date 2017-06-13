@@ -1,499 +1,577 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <malloc.h>
-
-typedef struct Node* NodePtr;//³ëµå±¸Á¶Ã¼ÀÇ Æ÷ÀÎÅÍ ¼±¾ğ
-
-//color¸¦ Àü¿ªº¯¼ö·Î ¼±¾ğ
-const int red = 1;
-const int black = 0;
-
-struct Node{
-  int val;
-  int color;
-  NodePtr left, right, parent;
-};//³ëµåÀÇ ±¸Á¶Ã¼ ¼±¾ğ
-
-NodePtr NodePtr_alloc(int newval) {
-  NodePtr self = (NodePtr)malloc(sizeof(struct Node));
-  self->val = newval;
-  self->left = NULL;
-  self->right = NULL;
-  self->parent = NULL;
-  self->color = NULL;
-  return self;
-}//³ëµåÀÇ »ı¼º ¹× °ª ÇÒ´ç(ÀÚ·á°ª ¹× left,right ÁÖ¼Ò°ª)
-
-
-NodePtr gp(NodePtr n)//gp NodePtr Á¤ÀÇ
-{
-    return n->parent->parent;
-}
- 
-NodePtr uncle(NodePtr n)//uncle NodePtr Á¤ÀÇ
-{
-    if (n->parent == gp(n)->left)
-        return gp(n)->right;
-    else
-        return gp(n)->left;
-}
-NodePtr sibling(NodePtr n)// sibling NodePtr Á¤ÀÇ
-{
- if ((n == NULL) || (n->parent == NULL))
-  return NULL; 
- if (n == n->parent->left)
-  return n->parent->right;
- else
-  return n->parent->left;
-}
-
-typedef struct rb* rbPtr;
-
-struct rb {
-  NodePtr root;
-  NodePtr NIL;
-  int count;
-  int black_count;
-};//rb ±¸Á¶Ã¼ ¼±¾ğ
-
-
-rbPtr rb_alloc()
-{
-   rbPtr rb = (rbPtr)malloc(sizeof(struct rb));
-   rb->root = NULL;
-   rb->count = 0;
-   rb->black_count = 0;
-   rb->NIL = NULL;
-   return rb;
-}
-void create_nilnode(rbPtr r)
-{
-    r->NIL  = (NodePtr)malloc(sizeof(struct Node));
-    (r->NIL)->color = black;
-    r->root = r->NIL;
-}
-
-//insert ÇÔ¼ö ¼±¾ğ
-void insert_case1(rbPtr self,NodePtr n);
-void insert_case2(rbPtr self,NodePtr n);
-void insert_case3(rbPtr self,NodePtr n);
-void insert_case4(rbPtr self,NodePtr n);
-void insert_case5(rbPtr self,NodePtr n);
-
-void left_rotate(rbPtr self, NodePtr x) {//left rotation ±¸Çö
-   NodePtr y;
-   y = x->right;
-   x->right = y->left;
-   if (y->left != NULL) {
-      y->left->parent = x;
-   }
-   y->parent = x->parent;
-   if (x->parent == NULL) {
-      self->root = y;
-	  y->parent = self->NIL;
-   }
-   else if (x == x->parent->left) {
-      x->parent->left = y;
-   }
-   else {
-      x->parent->right = y;
-   }
-   y->left = x;
-   x->parent = y;
-}
-
- void right_rotate(rbPtr self, NodePtr x) {//right rotation ±¸Çö
-    NodePtr y;
-    y = x->left;
-    x->left = y->right;
-    if (y->right != NULL) {
-       y->right->parent = x;
-    }
-    y->parent = x->parent;
-    if (x->parent == NULL) {
-       self->root = y;
-    }
-    else if (x == x->parent->left) {
-       x->parent->left = y;
-    }
-    else {
-       x->parent->right = y;
-    }
-    y->right = x;
-    x->parent = y;
-}
-
-void insert_case1(rbPtr self,NodePtr n)//³ëµå°¡ Ã³À½ »ğÀÔ µÇ¾úÀ»¶§
-{
-    if (n->parent == NULL)//·çÆ®³ëµåÀÏ °æ¿ì
-        n->color = black;
-    else
-        insert_case2(self,n);//ÇØ´çÇÏÁö ¾ÊÀ¸¸é case 2·Î
-}
-void insert_case2(rbPtr self,NodePtr n)//ºÎ¸ğ³ëµåÀÇ color°¡ °ËÁ¤ÀÏ¶§
-{
-    if (n->parent->color == black)
-        return; //ºÎ¸ğ³ëµåÀÇ color°¡ blackÀÌ¶ó¸é rb-tree°¡ ¿©ÀüÈ÷ À¯È¿ÇÏ±â ¶§¹®¿¡ fixupÇÔ¼ö Á¾·á
-    else
-        insert_case3(self,n);//ÇØ´çÇÏÁö ¾ÊÀ¸¸é case 3·Î
-}
-void insert_case3(rbPtr self,NodePtr n)//»ïÃÌ³ëµå°¡ Á¸ÀçÇÏ°í, ±× ³ëµåÀÇ color°¡ redÀÏ °æ¿ì
-{
-    if (uncle(n) != NULL && uncle(n)->color == red)
-    {
-        n->parent->color = black;
-        uncle(n)->color = black;
-        gp(n)->color = red;
- 
-        insert_case1(self,gp(n));//ÇÒ¾Æ¹öÁö ³ëµåÀÇ »öÀÌ redÀÌ°í blackÀ» ÀÚ½Ä³ëµå·Î °¡Áö±â ¶§¹®¿¡ ³ëµå°¡ Ã³À½ »ğÀÔµÇ¾úÀ»¶§ÀÇ ¾Ë°í¸®Áò Àû¿ë °¡´É
-    }
-    else
-        insert_case4(self,n);//ÇØ´çÇÏÁö ¾ÊÀ¸¸é case4·Î
-}
-
-void insert_case4(rbPtr self,NodePtr n)//ºÎ¸ğ³ëµåÀÇ color°¡ redÀÌ°í »ïÃÌ³ëµåÀÇ color°¡ blackÀÏ °æ¿ì    
-{
-    if (n == n->parent->right && n->parent == gp(n)->left)
-    {
-        left_rotate(self,n->parent);
-        n = n->left;
-    }
-    else if (n == n->parent->left && n->parent == gp(n)->right)
-    {
-        right_rotate(self,n->parent);
-        n = n->right;
-    }
-    insert_case5(self,n);//ÇØ´çÇÏÁö ¾ÊÀ¸¸é case5·Î
-}
- 
-
-void insert_case5(rbPtr self,NodePtr n)//³ëµå¿Í ºÎ¸ğ³ëµå, ÇÒ¾Æ¹öÁö ³ëµå±îÁö ¸ğµÎ °°Àº ¹æÇâÀÏ °æ¿ì
-{
-    n->parent->color = black;
-    gp(n)->color = red;
- 
-    if (n == n->parent->left && n->parent == gp(n)->left)
-    {
-        right_rotate(self,gp(n));
-    }
-    else
-    {
-        left_rotate(self,gp(n));
-    }
-}
-
-
-void rb_insert(rbPtr self,NodePtr tree,NodePtr n){//insert operation
-	
-  if (self->root == NULL){//Æ®¸®¿¡ ¾Æ¹« ³ëµå°¡ ¾øÀ»¶§
-    self->root = n;
-	self->root->color = black;
-	n->parent = self->NIL;
-	self->count++;
-	//self->NIL->color = black;
-}
-  else if (n->val <= tree->val) {//·çÆ®³ëµå°¡ ´õ Å«°æ¿ì
-    if (tree->left == NULL){
-      tree->left = n;
-	  n->parent = tree;
-	  n->color = red;
-	  n->left = self->NIL;
-	  n->right = self->NIL;
-	  self->count++;
-	}//left°¡ ºñ¾îÀÖ´Â °æ¿ì.
-    else
-      rb_insert(self,tree->left,n);//recursionÀ» ÅëÇØ ÇÏÀ§ ¼­ºêÆ®¸® »ı¼º.
-  }
-
-  else{//·çÆ®³ëµåº¸´Ù Å« °æ¿ì
-    if (tree->right == NULL){//right°¡ ºñ¾úÀ»°æ¿ì ±× À§Ä¡¿¡ ÇÒ´ç
-      tree->right = n;
-	  n->parent = tree;
-	  n->color = red;
-	  n->left = self->NIL;
-	  n->right = self->NIL;
-	  self->count++;
-	}
-    else
-      rb_insert(self,tree->right,n);//recursionÀ» ÅëÇØ ÇÏÀ§ ¼­ºêÆ®¸® »ı¼º
-  }
+ï»¿//ì „ì²˜ë¦¬ë¬¸ ì„ ì–¸
+#include<stdio.h>
+#include<stdlib.h>
+#include<malloc.h>
   
-  insert_case1(self,n);//insert_fixupÀ» À§ÇØ case1 ÇÔ¼ö È£Ãâ
+//ë…¸ë“œ êµ¬ì¡°ì²´ ì„ ì–¸
+typedef struct Pnode{
+
+   //left,right,parent ë…¸ë“œ ì„ ì–¸
+   Pnode * left;
+   Pnode * right;
+   Pnode * parent;
+
+   int value;//ë…¸ë“œì˜ value
+   char color;//ë…¸ë“œì˜ color
+
+}Node;
+
+//ë…¸ë“œí¬ì¸í„° ì„¤ì •
+typedef Node * NodePtr;
+
+
+//íŠ¸ë¦¬ êµ¬ì¡°ì²´ ì„ ì–¸
+typedef struct RBTree{
+   
+   //íŠ¸ë¦¬ì˜ root ë° NILë…¸ë“œ ì„ ì–¸
+   NodePtr root;
+   NodePtr NIL;
+
+   int count;//íŠ¸ë¦¬ì— ìˆëŠ” ë…¸ë“œì˜ ê°œìˆ˜ë¥¼ countí•˜ëŠ” ë©¤ë²„
+   int blackcount;//íŠ¸ë¦¬ì— ìˆëŠ” blackë…¸ë“œì˜ ê°œìˆ˜ë¥¼ countí•˜ëŠ” ë©¤ë²„
+   int blackheight;//blackheightë¥¼ í™•ì¸í•˜ëŠ” ë©¤ë²„
+   int insert;//insertëœ ë…¸ë“œì˜ ê°œìˆ˜ë¥¼ countí•˜ëŠ” ë©¤ë²„
+   int del;//deleteëœ ë…¸ë“œì˜ ê°œìˆ˜ë¥¼ countí•˜ëŠ” ë©¤ë²„
+   int miss;//missëœ ë…¸ë“œì˜ ê°œìˆ˜ë¥¼ countí•˜ëŠ” ë©¤ë²„
+
+}Tree;
+
+//íŠ¸ë¦¬í¬ì¸í„° ì„¤ì •
+typedef Tree * TreePtr;
+
+//ë…¸ë“œë¥¼ ìƒì„±í•˜ëŠ” í•¨ìˆ˜ ì„ ì–¸
+NodePtr NodeAlloc(TreePtr self,int data){
+
+   NodePtr Pnode=(NodePtr)malloc(sizeof(Node));//ë…¸ë“œí¬ì¸í„° ë™ì í• ë‹¹
+   Pnode->color='R';//ë…¸ë“œì˜ ìƒ‰ì„ ìš°ì„  ë¶‰ì€ìƒ‰ìœ¼ë¡œ ì„¤ì •.
+   Pnode->value=data;
+   //ë…¸ë“œì´ left,right,parentë¥¼ ëª¨ë‘ NILë¡œ ì´ˆê¸° ì„¤ì •
+   Pnode->left=self->NIL;
+   Pnode->right=self->NIL;
+   Pnode->parent=self->NIL;
+   return Pnode;
 }
 
-void transplant(rbPtr self, NodePtr t, NodePtr c){
-	if(t->parent = NULL){
-		self->root = c;
-	}
-	else if(t == t->parent->left){
-		t->parent->left = c;
-	}
-	else
-		t->parent->right = c;
-	if(c!= NULL)
-		c->parent = t->parent;
+//íŠ¸ë¦¬ë¥¼ ìƒì„±í•˜ëŠ” í•¨ìˆ˜ ì„ ì–¸
+TreePtr TreeAlloc(){
+
+   TreePtr PTree = (TreePtr)malloc(sizeof(Tree));//íŠ¸ë¦¬í¬ì¸í„° ë™ì í• ë‹¹
+   //íŠ¸ë¦¬ì˜ ë©¤ë²„ë³€ìˆ˜ì˜ ê°’ ì´ˆê¸°í™”
+   PTree->count=0;
+   PTree->blackcount=0;
+   PTree->blackheight=0;
+   PTree->del=0;
+   PTree->insert=0;
+   PTree->miss=0;
+
+   //NIL ë…¸ë“œì˜ ìƒì„± ë° ì´ˆê¸°í™”
+   PTree->NIL=(NodePtr)malloc(sizeof(Node));
+   PTree->NIL->left=PTree->NIL;
+   PTree->NIL->right=PTree->NIL;
+   PTree->NIL->parent=PTree->NIL;
+   PTree->NIL->color='B';//í„°ë¯¸ë„ ë…¸ë“œì˜ ìƒ‰ì€ black
+   PTree->NIL->value=0;
+
+   //Root ë…¸ë“œì˜ ìƒì„± ë° ì´ˆê¸°í™”
+   PTree->root=NodeAlloc(PTree,0);
+   PTree->root=PTree->NIL;
+   PTree->root->parent=PTree->NIL;
+   return PTree;
 }
 
-
-void rb_delete_fixup(rbPtr r, NodePtr x)
+//Right Rotation í•¨ìˆ˜
+void Rotate_right(TreePtr self, NodePtr root)
 {
-    NodePtr s = NULL; // sibling NodePtr.
+
+   NodePtr y=root->left;
+   root->left=y->right;
+   
+   if(y->right!=self->NIL)
+   {
+      y->right->parent=root;
+   }
+
+   y->parent=root->parent;
+   
+
+   if(root->parent==self->NIL)
+   {
+      self->root=y;
+   }
+   
+   else if(root==root->parent->left)
+   {
+      root->parent->left=y;
+   }
+   else 
+   {
+      root->parent->right=y;
+   }
+   y->right=root;
+   root->parent=y;
+   //Right Rotation ì™„ë£Œ
+}
+
+//Left Rotation í•¨ìˆ˜
+void Rotate_left(TreePtr self, NodePtr root)
+{
+
+   NodePtr y= root->right;
+   
+   root->right=y->left;
+   
+   if(y->left!=self->NIL)
+   {
+      y->left->parent=root;
+   }
+   
+   y->parent=root->parent;
+
+   if(root->parent==self->NIL)
+   {
+      self->root=y;
+   }
+   
+   else if(root==root->parent->left)
+   {
+      root->parent->left=y;
+   }   
+   else
+   {
+         root->parent->right=y;
+   }
+   y->left=root;
+   root->parent=y;
+   //Left Rotation ì™„ë£Œ
+}
+
+//rb_Search í•¨ìˆ˜ êµ¬í˜„
+NodePtr rb_search(TreePtr self, NodePtr x, int data)
+{
+   //ì°¾ê³ ì í•˜ëŠ” ê°’ì´ rootë…¸ë“œì˜ valueì¼ ê²½ìš°
+   if(x == self->NIL || x->value == data)
+      return x;
+
+   //ì°¾ê³ ì í•˜ëŠ” ê°’ì´ rootë…¸ë“œì˜ valueë³´ë‹¤ ì‘ì„ê²½ìš°
+   if(data < x->value)
+	   return rb_search(self,x->left,data);
+
+   //ì°¾ê³ ì í•˜ëŠ” ê°’ì´ rootë…¸ë“œì˜ valueë³´ë‹¤ í´ê²½ìš°
+   else
+      return rb_search(self,x->right,data);
+}
 
 
-	while( (x != r->root) && ( x->color == black))
-    {
-		if( x == (x->parent)->left)
-        {
-			s   = (x->parent)->right;
+//blackë…¸ë“œì˜ ê°œìˆ˜ë¥¼ ì„¸ëŠ” í•¨ìˆ˜ êµ¬í˜„
+void rb_blackcount(TreePtr self, NodePtr x)
+{
+   //ë…¸ë“œê°€ NULLì¼ë•Œ
+   if(x==self->NIL)
+      return ;
+   //ë¸”ë™ë…¸ë“œë¥¼ ë§Œë‚¬ì„ë•Œ
+   if(x->color=='B')
+      self->blackcount++;//blackcountê°’ ì¦ê°€
 
-            // case 1 : x's sibling s is red
-			if( s->color == red)
-            {
-                s->color      = black;
-                (x->parent)->color = red;
-                left_rotate( r, x->parent);
-                // update x's sibling
-                s   = (x->parent)->right;
-            }
-            // case 2 : x's sibling s is black, and both of s's children are black.
-            if( (s->left)->color == black && (s->right)->color == black)
-            {
-                s->color  = red;
-                x       = x->parent;
-            }
-            // case 3 : x's sibling s is black, s's left child is red, another is black.
-            else if( (s->left)->color == red && (s->right)->color == black)
-            {
-                s->color          = red;
-                (s->left)->color  = black;
-                right_rotate( r, s);
-                // update x's sibling
-                s   = (x->parent)->right;
-            }
-            // case 4 : x's sibling s is black, s's right child is red.
-            if( (s->right)->color == red)
-            {
-                s->color          = (x->parent)->color;
-                (s->right)->color = black;
-                (x->parent)->color     = black;
-                left_rotate( r, x->parent);
+   //ë£¨íŠ¸ë…¸ë“œë¥¼ ê¸°ì¤€ìœ¼ë¡œ ì™¼ìª½ìœ¼ë¡œ recursion
+   rb_blackcount(self, x->left);
+   //ë£¨íŠ¸ë…¸ë“œë¥¼ ê¸°ì¤€ìœ¼ë¡œ ì˜¤ë¥¸ìª½ìœ¼ë¡œ recursion
+   rb_blackcount(self, x->right);
+}
+
+
+//blackheightë¥¼ ê³„ì‚°í•˜ëŠ” í•¨ìˆ˜ êµ¬í˜„
+int rb_blackheight(TreePtr self, NodePtr x)
+{
+   int bh=1;//ë†’ì´ë¥¼ ë‚˜íƒ€ë‚´ëŠ” ë³€ìˆ˜ ì„ ì–¸ ë° ì´ˆê¸°í™”
+
+   
+   while (x->left != self->NIL && x->right != self->NIL)//terminalë…¸ë“œê¹Œì§€ ì§„í–‰
+   {
+      if(x->color=='B')
+         bh++;
+      x=x->right;
+   }
+   return bh;
+}
+
+//íŠ¸ë¦¬ì— ìˆëŠ” ë…¸ë“œë“¤ì˜ inorder traversalê²°ê³¼ë¥¼ ì¶œë ¥í•´ì£¼ëŠ” í•¨ìˆ˜ êµ¬í˜„
+void RBprint_inorder(TreePtr self, NodePtr x)
+{
+   //íŠ¸ë¦¬ì— ì•„ë¬´ ë…¸ë“œê°€ ì—†ì„ê²½ìš° í•¨ìˆ˜ ì¢…ë£Œ
+   if(x == self->NIL)
+      return;
+
+   //recursionì„ ì´ìš©í•˜ì—¬ red-blackíŠ¸ë¦¬ì˜ ì •ë ¬ë°©ì‹ì— ë§ì¶”ì–´ ë…¸ë“œë¥¼ ì¶œë ¥í•œë‹¤
+   RBprint_inorder(self,x->left);
+   printf("%d",x->value);
+   printf(" %c\n",x->color);
+   RBprint_inorder(self,x->right);
+}
+
+
+//Red-Black tree Insert Operationêµ¬í˜„
+
+// 1. Insert Fixup í•¨ìˆ˜
+int Insert_Fixup(TreePtr self, NodePtr target)
+{
+   //íƒ€ê²Ÿë…¸ë“œê°€ íŠ¸ë¦¬ì˜ ë£¨íŠ¸ë…¸ë“œì´ê±°ë‚˜ íƒ€ê²Ÿë…¸ë“œì˜ ë¶€ëª¨ë…¸ë“œê°€ íŠ¸ë¦¬ì˜ ë£¨íŠ¸ë…¸ë“œì¼ë•Œ
+   if( target==self->root || target->parent==self->root)
+   {
+      self->root->color='B';
+      return 0;
+   }
+   
+
+   while(target != self->NIL && target != self->root && target->parent->color=='R')
+   {
+
+     //íƒ€ì¼“ë…¸ë“œì˜ ë¶€ëª¨ë…¸ë“œê°€ íƒ€ê²Ÿë…¸ë“œì˜ í• ì•„ë²„ì§€ ë…¸ë“œì˜ leftì¼ë•Œ
+      if(target->parent == target->parent->parent->left)
+      {
+         NodePtr uncle = target->parent->parent->right;//ì‚¼ì´Œë…¸ë“œ ì„ ì–¸
+
+       //ì‚¼ì´Œë…¸ë“œì˜ colorì— ë”°ë¼ caseë¥¼ ë‚˜ëˆ„ì–´ì„œ ì§„í–‰
+         if(uncle->color == 'R')
+         {
+            target->parent->color='B';
+            uncle->color = 'B';
+            target->parent->parent->color = 'R';
+            target = target->parent->parent;
+         }
+
+         else 
+            { 
+               if( target == target->parent->right)
+               {
+                  target = target->parent;
+                  Rotate_left(self,target);
+               }         
             
-                x   = r->root;
-            }
-			return;
-        }
-        else
+            target->parent->color='B';
+            target->parent->parent->color='R';
+            Rotate_right(self,target->parent->parent);
+         }
+      }
+
+     //íƒ€ì¼“ë…¸ë“œì˜ ë¶€ëª¨ë…¸ë“œê°€ íƒ€ê²Ÿë…¸ë“œì˜ í• ì•„ë²„ì§€ ë…¸ë“œì˜ rightì¼ë•Œ
+      else
+      {
+         NodePtr uncle = target->parent->parent->left;//ì‚¼ì´Œë…¸ë“œ ì„ ì–¸
+
+       //ì‚¼ì´Œë…¸ë“œì˜ colorì— ë”°ë¼ ì§„í–‰
+         if(uncle->color == 'R')
+         {
+            target->parent->color='B';
+            uncle->color = 'B';
+            target->parent->parent->color='R';
+            target = target->parent->parent;
+         }
+
+         else 
+         {
+               if( target == target->parent->left)
+               {
+                  target = target->parent;
+                  Rotate_right(self,target);
+               }
+            target->parent->color='B';
+            target->parent->parent->color='R';
+            Rotate_left(self,target->parent->parent);
+         }
+      }
+   }
+
+   self->root->color = 'B';//íŠ¸ë¦¬ì˜ rootë…¸ë“œì˜ ìƒ‰ RBT ì •ì˜ì— ë”°ë¼ ê²€ì •ìƒ‰ìœ¼ë¡œ ì„¤ì •
+
+   return 0;
+}
+
+
+// 2. Insert í•¨ìˆ˜ êµ¬í˜„
+int rb_insert(TreePtr self, int data)
+{
+   // NILë…¸ë“œ, Rootë…¸ë“œ, ì¶”ê°€í•  ë…¸ë“œ ì„ ì–¸
+   NodePtr a = self->NIL;
+   NodePtr b = self->root;
+   NodePtr newNode = NodeAlloc(self, data);
+
+   //íŠ¸ë¦¬ê°€ ë¹„ì—ˆì„ë•Œ
+   if(self->count==0)
+   {
+      self->root=newNode;//ìƒˆë¡œ ì¶”ê°€ëœ ë…¸ë“œë¥¼ Rootë…¸ë“œë¡œ ì„¤ì •
+      self->count++;
+      return 0;
+   }
+
+   
+   while ( b != self->NIL)         
+   {
+      a = b;
+      if(newNode->value < b->value)
+      {
+         b = b->left;
+      }
+      else
+      {
+         b = b->right;
+      }
+   }
+
+   newNode->parent = a;
+
+   if( newNode->value < a->value)
+   {
+      a->left = newNode;
+   }
+   else
+   {
+      a->right = newNode;
+   }
+
+   //ì¶”ê°€ëœ ë…¸ë“œì— ëŒ€í•˜ì—¬ leftë…¸ë“œ, rightë…¸ë“œ, color ì§€ì •
+   newNode->left = self->NIL;
+   newNode->right = self->NIL;
+   newNode->color = 'R';
+
+   //Insertê°€ ë˜ë©´ì„œ Red-BlackíŠ¸ë¦¬ì˜ ê· í˜•ì´ ë¬´ë„ˆì¡Œìœ¼ë¯€ë¡œ Fixupì„ í•´ì¤€ë‹¤.
+   Insert_Fixup(self, newNode);
+   //ì´ ë…¸ë“œì˜ ìˆ˜ ëŠ˜ë ¤ì£¼ê¸°
+   self->count++;
+   return 0;
+}
+
+
+
+//Red-Black tree Delete Operationêµ¬í˜„
+
+// 1. Transplant êµ¬í˜„
+void Transplant(TreePtr self, NodePtr a, NodePtr b)
+{
+   if(a->parent == self->NIL)
+      self->root=b;
+
+   else if(a == a->parent->left)
+      a->parent->left = b;
+   
+   else
+      a->parent->right = b;
+
+   b->parent = a->parent;
+}
+
+// 2. Minimun êµ¬í˜„
+NodePtr Minimum(TreePtr self, NodePtr x)
+{
+   while(x->left != self->NIL){
+      x = x->left;
+   }
+   return x;
+}
+
+
+// 3. Delete_Fixup êµ¬í˜„
+void Delete_fixup(TreePtr self, NodePtr x) {
+
+   while (x != self->root && x->color == 'B') {
+       
+	   //íƒ€ê²Ÿë…¸ë“œê°€ ë¶€ëª¨ë…¸ë“œì˜ leftë…¸ë“œì¼ë•Œ
+	   if (x == x->parent->left) {
+
+         NodePtr b = x->parent->right;//í˜•ì œë…¸ë“œ ì„ ì–¸
+         
+		 //í˜•ì œë…¸ë“œì˜ colorê°€ Redì¼ë•Œ
+		 if (b->color == 'R') 
+         {
+            b->color = 'B';
+            x->parent->color = 'R';
+            Rotate_left(self, x->parent);
+            b = x->parent->right;
+         }
+
+		 //í˜•ì œë…¸ë“œì´ colorê°€ Blackì¼ë•Œ
+         if (b->left->color =='B' && b->right->color == 'B')
+         {
+            b->color = 'R';
+            x = x->parent;
+         }
+
+         else if (b->right->color == 'B') 
+         {
+            b->left->color = 'B';
+            b->color = 'R';
+            Rotate_right(self, b);
+            b = x->parent->right;
+         }
+
+         b->color = x->parent->color;
+         x->parent->color = 'B';
+         b->right->color = 'B';
+         Rotate_left(self, x->parent);
+         x = self->root;
+      }
+	  
+
+	  //íƒ€ê²Ÿë…¸ë“œê°€ ë¶€ëª¨ë…¸ë“œì˜ rightë…¸ë“œì¼ë•Œ
+	  else {
+
+         NodePtr b = x->parent->left;//í˜•ì œë…¸ë“œ ì„ ì–¸
+         
+		 //í˜•ì œë…¸ë“œì˜ colorê°€ Redì¼ë•Œ
+		 if (b->color == 'R') {
+            b->color = 'B';
+            x->parent->color = 'R';
+            Rotate_left(self, x->parent);
+            b = x->parent->left;
+         }
+
+		 //í˜•ì œë…¸ë“œì˜ Colorê°€ Blackì¼ë•Œ
+         if (b->right->color == 'B' && b->left->color == 'B') {
+            b->color = 'R';
+            x = x->parent;
+         }
+
+         else if (b->left->color == 'B') {
+            b->right->color = 'B';
+            b->color = 'R';
+            Rotate_left(self, b);
+            b = x->parent->left;
+         }
+
+         b->color = x->parent->color;
+         x->parent->color = 'B';
+         b->left->color = 'B';
+         Rotate_right(self, x->parent);
+         x = self->root;
+      }
+   }
+
+   x->color = 'B';
+}
+
+// 4. Delete í•¨ìˆ˜ êµ¬í˜„
+void rb_delete(TreePtr self, NodePtr target)
+{
+   NodePtr x;
+   NodePtr y = target;//íƒ€ê²Ÿë…¸ë“œì˜ ì›ë˜ ì •ë³´ë¥¼ ì €ì¥í•˜ê¸° ìœ„í•œ ë³€ìˆ˜ì„ ì–¸
+
+   char original_color = y->color;//íƒ€ê²Ÿë…¸ë“œì˜ ì›ë˜ ìƒ‰ì„ ì €ì¥í•˜ëŠ” ë³€ìˆ˜
+
+
+   //íƒ€ê²Ÿë…¸ë“œì˜ leftë…¸ë“œê°€ ì—†ì„ë•Œ
+   if (target->left == self->NIL)
+   {
+      x = target->right;
+      Transplant(self,target,target->right);
+   }
+
+   //íƒ€ê²Ÿë…¸ë“œì˜ rightë…¸ë“œê°€ ì—†ì„ë•Œ
+   else if (target->right == self->NIL)
+   {
+      x = target->left;
+      Transplant(self,target,target->left);
+   }
+
+
+   else 
+   {
+      y = Minimum(self, target->right);
+      original_color = y->color;
+      x = y->right;
+
+      if (y->parent == target) 
+      {
+         x->parent = y;
+      }
+      else
+      {
+         Transplant(self,y,y->right);
+         y->right = target->right;
+         y->right->parent = y;
+      }
+
+      Transplant(self,target,y);
+      y->left = target->left;
+      y->left->parent = y;
+      y->color = target->color;
+   }
+
+
+   //íƒ€ê²Ÿë…¸ë“œì˜ ìƒ‰ì´ Redë¼ë©´ Fixupì„ ê±°ì¹˜ì§€ ì•Šì•„ë„ ëœë‹¤
+   if (original_color == 'B') 
+   {
+      Delete_fixup(self, x); 
+   }
+
+   //ì´ ë…¸ë“œì˜ ìˆ˜ ì¤„ì—¬ì£¼ê¸°
+   self->count--;
+}
+
+
+
+void data_operation(TreePtr self, int data)
+{
+
+   //0ë³´ë‹¤ í° ê°’ì„ ë§Œë‚˜ë©´ ë°ì´í„°ë¥¼ íŠ¸ë¦¬ì— Insertí•´ì•¼í•˜ë¯€ë¡œ Insert-Operationí•¨ìˆ˜ë¥¼ í˜¸ì¶œí•˜ì—¬ ì‘ì—…ì„ ìˆ˜í–‰í•œë‹¤.
+   if(data>0)
+   {
+	   rb_insert(self,data);
+       self->insert++;//Insertí•œ ë…¸ë“œì˜ ìˆ˜ë¥¼ ì„¸ëŠ” ë³€ìˆ˜ë¥¼ ì¦ê°€ì‹œì¼œì¤€ë‹¤
+   }
+
+
+   //0ë³´ë‹¤ ì‘ì€ ê°’ì„ ë§Œë‚˜ë©´ ë°ì´í„°ë¥¼ íŠ¸ë¦¬ì—ì„œ Deleteí•´ì•¼í•˜ë¯€ë¡œ Delete-Operationí•¨ìˆ˜ë¥¼ í˜¸ì¶œí•˜ì—¬ ì‘ì—…ì„ ìˆ˜í–‰í•œë‹¤.
+   else if(data<0) 
+   {
+      if(rb_search(self,self->root,(data*(-1)))==self->NIL)
         {
-            s   = (x->parent)->left;
+         self->miss++;//ì§€ìš°ë ¤ê³  í–ˆìœ¼ë‚˜ íŠ¸ë¦¬ì— ì—†ë˜ ë…¸ë“œì˜ ìˆ˜ë¥¼ ì„¸ëŠ” ë³€ìˆ˜ë¥¼ ì¦ê°€ì‹œì¼œì¤€ë‹¤
+     }
+     else 
+      {
+         rb_delete(self,rb_search(self,self->root,(data*(-1))));
+         self->del++;//Deleteí•œ ë…¸ë“œì˜ ìˆ˜ë¥¼ ì„¸ëŠ” ë³€ìˆ˜ë¥¼ ì¦ê°€ì‹œì¼œì¤€ë‹¤
+      }
+   }
 
-            // case 1 : x's sibling s is red
-           if( s->color == red)
-            {
-                s->color      = black;
-                (x->parent)->color = red;
-                right_rotate( r, x->parent);
-                // update x's sibling
-                s   = (x->parent)->left;
-            }
-            // case 2 : x's sibling s is black, and both of s's children are black.
-            if( (s->left)->color == black && (s->right)->color == black)//¿À·ù
-            {
-                s->color  = red;
-                x       = x->parent;
-            }
-            // case 3 : x's sibling s is black, s's right child is red, another is black.
-            else if( (s->right)->color == red && (s->left)->color == black)
-            {
-                s->color          = red;
-                (s->right)->color = black;
-                left_rotate( r, s);
-                // update x's sibling
-                s   = (x->parent)->left;
-            }
-            // case 4 : x's sibling s is black, s's left child is red.
-            if( (s->left)->color == red)
-            {
-                s->color          = (x->parent)->color;
-                (s->left)->color  = black;
-                (x->parent)->color     = black;
-                right_rotate( r, x->parent);
-            
-                x   = r->root;
-            }
-        }
-    }
-    x->color  = black;
+
+   //0ì„ ë§Œë‚˜ë©´ ì‘ì—…ì„ ì¢…ë£Œí•˜ê³  íŠ¸ë¦¬ì˜ ì •ë³´ë¥¼ ì¶œë ¥í•œë‹¤.
+   else
+   {
+      printf("total = %d\n", self->count);
+      printf("insert = %d\n", self->insert);
+      printf("delete = %d\n", self->del);
+      printf("miss = %d\n", self->miss);
+	  printf("bh = %d\n",rb_blackheight(self,self->root));
+	  //blackcountí•¨ìˆ˜ í˜¸ì¶œ í›„ blackë…¸ë“œì˜ ê°œìˆ˜ ì¶œë ¥
+      rb_blackcount(self,self->root);
+      printf("nb = %d\n\n\n",self->blackcount);
+      
+      
+	  printf("Result of Inorder Traversal: \n");
+	  getchar();
+      RBprint_inorder(self,self->root);
+      return ;
+   }
 }
 
-void rb_delete(rbPtr self, NodePtr tree, NodePtr value){
-	NodePtr x = value;
-	if(value->left == NULL && value->right == NULL){//Å¸°Ù³ëµåÀÇ ÀÚ½Ä³ëµå°¡ ¾ø´Â°æ¿ì
-		if(value == value->parent->left)
-			value->parent->left = NULL;
-		else if(value == value->parent->right)
-			value->parent->right = NULL;
-		self->count--;
-	}
 
-	else if(value->left != NULL && value->right == NULL){//ÀÚ½Ä³ëµå°¡ ¿ŞÂÊ¿¡¸¸ ÀÖ´Â°æ¿ì
-		if(value->parent->left == value){//Å¸°Ù³ëµå°¡ ºÎ¸ğ³ëµåÀÇ left NodePtrÀÎ°æ¿ì
-			value->parent->left = value->left;
-			value->left->parent = value->parent;
-			self->count--;
-		}
-		else if(value->parent->right == value){//Å¸°Ù³ëµå°¡ ºÎ¸ğ³ëµåÀÇ right NodePtrÀÎ°æ¿ì
-			value->parent->right = value->left;
-			value->left->parent = value->parent;
-			self->count--;
-		}
-	}
-	else if(value->right != NULL && value->left == NULL){//ÀÚ½Ä³ëµå°¡ ¿À¸¥ÂÊ¿¡¸¸ ÀÖ´Â°æ¿ì
-		if(value->parent->left == value){//Å¸°Ù³ëµå°¡ ºÎ¸ğ³ëµåÀÇ left NodePtrÀÎ°æ¿ì
-			value->parent->left = value->right;
-			value->right->parent = value->parent;
-			self->count--;
-		}
-		else if(value->parent->right == value) {//Å¸°Ù³ëµå°¡ ºÎ¸ğ³ëµåÀÇ right NodePtrÀÎ°æ¿ì
-			value->parent->right = value->right;
-			value->right->parent = value->parent;
-			self->count--;
-		}
-	}
-	else if(value->left != NULL && value->right != NULL){//Å¸°Ù³ëµå°¡ µÎ°³ÀÇ ÀÚ½Ä³ëµå¸¦ °¡Áö´Â°æ¿ì
-		NodePtr mNodePtr = value->right;
-		NodePtr mpNodePtr = value;
+void main()
+{
+    TreePtr RBT = TreeAlloc();//íŠ¸ë¦¬ìƒì„±
+       int data;//textíŒŒì¼ ì•ˆì˜ ë°ì´í„°ë¥¼ ë‚˜íƒ€ë‚´ëŠ” ë³€ìˆ˜ ì„ ì–¸
+       FILE *fp=NULL;
+	   //íŒŒì¼ì„ ì½ì–´ë“¤ì´ëŠ” ì‘ì—…
+       fopen_s(&fp,"test02.txt", "r");
+       fscanf_s(fp, "%d", &data);
 
-		while(mNodePtr->left != NULL)
-		{
-			mpNodePtr = mNodePtr;
-			mNodePtr = mNodePtr->left;
-		}
-
-		value->val = mNodePtr->val;
-
-		if(mpNodePtr->left == mNodePtr)
-		{
-			mpNodePtr->left = mNodePtr->right;
-			mNodePtr->parent->left= NULL;
-			self->count--;
-		}
-		else if(mpNodePtr->right == mNodePtr)
-		{
-			mpNodePtr->right = mNodePtr->right;
-			mNodePtr->parent->right= NULL;
-			self->count--;
-		}
-	}
-
-	/*if(x->color == black){
-	rb_delete_fixup(self,x);
-	}*/
-}
-
-NodePtr rb_search(rbPtr self, NodePtr tree, int value){
-	if(value == tree->val)
-		return tree;
-	else if(value > tree->val){
-		rb_search(self,tree->right, value);
-	}
-	else if(value < tree->val)
-		rb_search(self,tree->left, value);
-	else
-		return 0;
-}
-
-void rb_print(rbPtr self, NodePtr tree, int level) {
-  if (tree->right != NULL)
-    rb_print(self,tree->right, level + 1);
-  for(int i = 0; i < level; i++)
-    printf("    ");
-  printf("%d\n", tree->val);
-  if (tree->left != NULL)
-    rb_print(self, tree->left, level + 1);
-}
-//stackÀ» ÀÌ¿ëÇÑ inorder travel
-struct Stack{
-	NodePtr arr[100];
-	int top;
-};
-
-void stackinit(Stack * pstack){
-	pstack->top = 0;
-}
-int is_empty(Stack * pstack){
-	return pstack->top==0;
-}	
-void push(Stack * pstack, NodePtr val){
-	pstack->arr[pstack->top++] = val;
-}
-NodePtr pop(Stack * pstack){
-	return pstack->arr[--pstack->top];
-}
-
-void rb_inorder_iter(NodePtr tree) {
-	Stack stk;
-	stackinit(&stk);
-	while(!is_empty(&stk) || tree !=NULL)
-	{
-		if(tree != NULL){
-			push(&stk,tree);
-			tree = tree->left;
-		}
-		else
-		{
-			tree = pop(&stk);
-			printf("%d ",tree->val);
-			tree = tree->right;
-		}
-	}
-}
-int count_black(NodePtr tree){
-	Stack stk;
-	stackinit(&stk);
-	int num=0;
-	while(!is_empty(&stk) || tree!=NULL){
-		if(tree != NULL && tree->color==black){
-			push(&stk,tree);
-			tree = tree->left;
-		}
-		else
-		{
-			tree = pop(&stk);
-			num++;
-			tree = tree->right;
-		}
-	}
-	return num;
-}
-
-void main() {
-  rbPtr rb = rb_alloc();//Æ®¸® »ı¼º
-  //rb->black_count = count_black(rb->root);
-  //create_nilnode(rb);
-  rb_insert(rb,rb->root,NodePtr_alloc(2));
-  rb_insert(rb,rb->root,NodePtr_alloc(3));
-  rb_insert(rb,rb->root,NodePtr_alloc(4));
-  rb_insert(rb,rb->root,NodePtr_alloc(5));
-  rb_insert(rb,rb->root,NodePtr_alloc(6));
-  rb_insert(rb,rb->root,NodePtr_alloc(7));
-  //rb->black_count = count_black(rb->root);
-  rb_print(rb,rb->root,0);
-  rb_inorder_iter(rb->root);
-  printf("\n³ëµåÀÇ »ö:");
-  printf("%d ",rb->root->color);
-  printf("%d ",rb->root->left->color);
-  printf("%d ",rb->root->right->color);
-  printf("%d ",rb->root->right->left->color);
-  printf("%d ",rb->root->right->right->color);
-  printf("%d\n",rb->root->right->right->right->color);
-  printf("\n·¹µå:1, ºí·¢: 0ÀÔ´Ï´Ù\n");
-  printf("ÃÑ ³ëµåÀÇ °³¼ö: %d",rb->count);
-  printf("\n\\\\\\\\\\\\\\\\\\\\\\\n");
-  
-  Node * n = rb_search(rb,rb->root,4);
-  rb_delete(rb ,rb->root,n);
-  rb_print(rb,rb->root,0);
-  printf("%d\n",rb->count);
-  rb_inorder_iter(rb->root);
-
+	   //ë°ì´í„° ì…ë ¥ë°›ì•„ì„œ ì²˜ë¦¬
+       while(data!=0)
+       {
+          data_operation(RBT,data);
+          fscanf_s(fp, "%d", &data);
+       }
+	  //0ì¸ê²½ìš° ì²˜ë¦¬
+      data_operation(RBT,data);
+      fclose(fp);
+	  return ;
 }
